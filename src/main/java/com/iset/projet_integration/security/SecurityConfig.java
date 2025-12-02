@@ -70,17 +70,21 @@ public class SecurityConfig {
                                 "/api/keycloak/register",
                                 "/api/keycloak/login",
                                 "/api/keycloak/profile",  // ⚠️ AJOUT: autoriser profile
+                                "/api/keycloak/**",  // ⚠️ AJOUT: autoriser profile
                                 "/api/users/sync",
                                 "/api/users/ajouter",
                                 "/api/admin/summary-report",
                                 "/api/notifications/user/**",
+                                "/api/users/**",
                                 "/api/notifications/**",
                                 "/donations",
                                 "/donations/**",
                                 "/api/keycloak/profile/{username}",
-                                "/api/keycloak/profile/{username}/password"
+                                "/api/keycloak/profile/{username}/password",
+                                "/api/posts/**"
 
-                        ).permitAll()
+
+                ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
@@ -91,13 +95,15 @@ public class SecurityConfig {
                             if (path.startsWith("/api/keycloak/register")
                                     || path.startsWith("/api/keycloak/login")
                                     || path.startsWith("/api/keycloak/profile")
-                                    || path.startsWith("/api/keycloak/profile/{username}")  // ⚠️ AJOUT
+                                    || path.startsWith("/api/keycloak/**")  // ⚠️ AJOUT
                                     || path.startsWith("/api/users/sync")
                                     || path.startsWith("/api/users/ajouter")
                                    // || path.startsWith("/api/admin/summary-report")
                                     || path.startsWith("/api/notifications/user/**")
                                     || path.startsWith("/api/notifications/**")
                                     || path.startsWith("/donations")
+                                    || path.startsWith("/api/posts/**")
+                                    || path.startsWith("/api/users/**")
 
                             ) {
                                 return null;

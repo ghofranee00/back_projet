@@ -9,4 +9,6 @@ public interface NotificationRepository extends MongoRepository<Notification, St
     List<Notification> findByDestinataire(User destinataire);
     List<Notification> findByLu(boolean lu);
     List<Notification> findByStatut(Notification.StatutNotification statut);
+    List<Notification> findByDonationId(String donationId);
+
 }

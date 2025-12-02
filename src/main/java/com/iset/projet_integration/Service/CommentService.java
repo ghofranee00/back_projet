@@ -37,7 +37,10 @@ public class CommentService {
 
         return saved;
     }
-
+    public Comment getCommentById(String commentId) {
+        return commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found with ID: " + commentId));
+    }
     public List<Comment> findByPostId(String postId) {
         return commentRepository.findByPostId(postId);
     }

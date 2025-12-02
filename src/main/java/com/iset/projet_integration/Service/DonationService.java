@@ -32,21 +32,18 @@ public class DonationService {
 
     // 🔹 Créer une donation
     public Donation creerDonation(Donation donation) {
-        if (donation.getDonor() == null || donation.getDonor().getId() == null) {
+        // Vérifier que le donor est déjà défini
+        if (donation.getDonor() == null) {
             throw new RuntimeException("Donor non fourni pour la donation");
         }
+
         if (donation.getPost() == null || donation.getPost().getId() == null) {
             throw new RuntimeException("Demande non fournie pour la donation");
         }
 
-        // Récupérer le donor complet
-        User donor = userRepository.findById(donation.getDonor().getId())
-                .orElseThrow(() -> new RuntimeException("Donor introuvable"));
-        donation.setDonor(donor);
-
-        // Récupérer la demande complète
+        // Récupérer le post complet
         Post post = postRepository.findById(donation.getPost().getId())
-                .orElseThrow(() -> new RuntimeException("Demande introuvable"));
+                .orElseThrow(() -> new RuntimeException("Demande introuvable. ID: " + donation.getPost().getId()));
         donation.setPost(post);
 
         // Statut initial
@@ -54,32 +51,29 @@ public class DonationService {
 
         Donation saved = donationRepository.save(donation);
 
-        // Notification vers l’ADMIN
+        // Notification vers l'ADMIN
         List<User> admins = userRepository.findByRole(User.Role.ADMIN);
         if (!admins.isEmpty()) {
             User admin = admins.get(0);
+            User donor = donation.getDonor();
             Notification notif = new Notification(
-                    "Nouvelle donation reçue de " + donor.getId(),
+                    "Nouvelle donation reçue de " + donor.getFirstName() + " " + donor.getLastName(),
                     Notification.TypeNotification.DONATION,
                     Notification.StatutNotification.EN_ATTENTE,
                     donor,   // expéditeur
-                    admin ,  // destinataire
+                    admin,   // destinataire
                     saved
             );
             notificationRepository.save(notif);
         }
 
         return saved;
-    }
-
-    // 🔹 Lister toutes les donations
-    public List<Donation> listerDonations() {
+    }    public List<Donation> listerDonations() {
         return donationRepository.findAll();
     }
 
     // 🔹 Traiter une donation (ADMIN : accepter/refuser)
     public List<Notification> traiterDonation(String donationId, String action) {
-
         Donation donation = donationRepository.findById(donationId)
                 .orElseThrow(() -> new RuntimeException("Donation non trouvée avec l'ID: " + donationId));
 
@@ -123,7 +117,6 @@ public class DonationService {
             notificationsCrees.add(notifNeedy);
 
         } else if (action.equalsIgnoreCase("refuser")) {
-
             donation.setStatus(Donation.StatutDonation.REFUSEE);
             donationRepository.save(donation);
 
@@ -150,24 +143,21 @@ public class DonationService {
             );
             notificationRepository.save(notifNeedy);
             notificationsCrees.add(notifNeedy);
+        } else {
+            throw new RuntimeException("Action invalide. Utilisez 'accepter' ou 'refuser'.");
         }
 
         return notificationsCrees;
     }
 
-    // 🔹 Méthodes utilitaires
+    // 🔹 Méthodes optimisées avec repository queries
 
     public List<Donation> getDonationsByUser(User user) {
-        return donationRepository.findAll().stream()
-                .filter(d -> d.getDonor() != null && d.getDonor().getId().equals(user.getId()))
-                .collect(Collectors.toList());
+        return donationRepository.findByDonorId(user.getId()); // Utilisez une méthode repository
     }
 
-
     public List<Donation> getDonationsByStatut(Donation.StatutDonation statut) {
-        return donationRepository.findAll().stream()
-                .filter(d -> d.getStatus() == statut)
-                .collect(Collectors.toList());
+        return donationRepository.findByStatus(statut); // Utilisez une méthode repository
     }
 
     public Donation getDonationById(String id) {
@@ -183,29 +173,35 @@ public class DonationService {
         donation.setDetails(donationDetails.getDetails());
         donation.setImages(donationDetails.getImages());
 
+        // Note: Le statut ne peut être modifié que via traiterDonation() par ADMIN
+        // Le donor ne peut modifier que les détails
+
         return donationRepository.save(donation);
     }
 
     public void deleteDonation(String id) {
         Donation donation = getDonationById(id);
 
-        // Supprimer notifications liées
-        List<Notification> notificationsLiees = notificationRepository.findAll().stream()
-                .filter(n -> n.getDonation() != null && n.getDonation().getId().equals(id))
-                .collect(Collectors.toList());
+        // Supprimer notifications liées - optimisation
+        List<Notification> notificationsLiees = notificationRepository.findByDonationId(id);
         if (!notificationsLiees.isEmpty()) {
             notificationRepository.deleteAll(notificationsLiees);
         }
 
         donationRepository.delete(donation);
     }
+
     public List<Donation> filtrerDonations(Donation.Categorie categorie, String region, Donation.StatutDonation statut) {
-        return donationRepository.findAll().stream()
-                .filter(d -> (categorie == null || d.getCategorie() == categorie))
-                .filter(d -> (region == null || (d.getRegion() != null && d.getRegion().equalsIgnoreCase(region))))
-                .filter(d -> (statut == null || d.getStatus() == statut))
-                .collect(Collectors.toList());
+        // Utilisez une méthode repository personnalisée pour plus d'efficacité
+        if (categorie == null && region == null && statut == null) {
+            return donationRepository.findAll();
+        }
+
+        return donationRepository.findByCategorieAndRegionAndStatus(categorie, region, statut);
     }
 
-
+    // 🔹 Méthode supplémentaire pour récupérer donations par post
+    public List<Donation> getDonationsByPost(String postId) {
+        return donationRepository.findByPostId(postId);
+    }
 }

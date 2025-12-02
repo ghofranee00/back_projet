@@ -4,7 +4,7 @@ import java.util.List;
 
 public class DonationRequest {
 
-    private String PostId;
+    private String postId;
     private String donorId;
     private Donation.Categorie categorie;
     private String region;
@@ -14,11 +14,11 @@ public class DonationRequest {
     public DonationRequest() {}
 
     public String getPostId() {
-        return PostId;
+        return postId;
     }
 
     public void setPostId(String postId) {
-        this.PostId = postId;
+        this.postId = postId;
     }
 
     public String getDonorId() {
@@ -60,7 +60,7 @@ public class DonationRequest {
     }
 
     public DonationRequest(String postId, String donorId, Donation.Categorie categorie, String region, String details, List<String> images) {
-        PostId = postId;
+        postId = postId;
         this.donorId = donorId;
         this.categorie = categorie;
         this.region = region;

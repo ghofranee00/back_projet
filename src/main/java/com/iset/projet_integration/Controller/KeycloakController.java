@@ -125,57 +125,100 @@ public class KeycloakController {
     }
 
 
+
     // -------------------------------
 // UPDATE USER PROFILE
 // -------------------------------
     // CORRECTION : Dans votre méthode updateProfile du contrôleur
-    @PutMapping("/profile/{username}")
-    public ResponseEntity<User> updateProfile(@PathVariable String username, @RequestBody UserUpdateDto updateDto) {
+    @PutMapping("/profile/{id}")
+    public ResponseEntity<User> updateProfile(@PathVariable String id, @RequestBody UserUpdateDto updateDto) {
         try {
-            Optional<User> existingUser = userRepository.findByIdentifiant(username);
+            System.out.println("\n🔥🔥🔥 UPDATE PROFILE PAR ID 🔥🔥🔥");
+            System.out.println("📌 ID reçu: '" + id + "'");
+            System.out.println("📦 Données: firstName=" + updateDto.getFirstName() +
+                    ", lastName=" + updateDto.getLastName() +
+                    ", email=" + updateDto.getEmail());
+
+            // 🔥 CHANGER: Chercher par ID maintenant
+            Optional<User> existingUser = userRepository.findById(id);
+
             if (existingUser.isEmpty()) {
+                System.out.println("❌❌❌ UTILISATEUR NON TROUVÉ avec ID: " + id);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
             }
 
             User user = existingUser.get();
+            System.out.println("✅ UTILISATEUR TROUVÉ:");
+            System.out.println("   - ID: " + user.getId());
+            System.out.println("   - Username: " + user.getIdentifiant());
+            System.out.println("   - Email actuel: " + user.getEmail());
+            System.out.println("   - FirstName actuel: " + user.getFirstName());
+            System.out.println("   - LastName actuel: " + user.getLastName());
 
-            // Mettre à jour les champs
-            if (updateDto.getFirstName() != null) user.setFirstName(updateDto.getFirstName());
-            if (updateDto.getLastName() != null) user.setLastName(updateDto.getLastName());
-            if (updateDto.getEmail() != null) user.setEmail(updateDto.getEmail());
+            // Sauvegarder les anciennes valeurs
+            String oldEmail = user.getEmail();
+            String oldFirstName = user.getFirstName();
+            String oldLastName = user.getLastName();
 
-            // 🔥 CORRECTION : Récupérer l'ID Keycloak AVANT la mise à jour
-            String keycloakUserId = user.getId(); // Assurez-vous que ce champ existe
+            // Mettre à jour
+            boolean changed = false;
 
+            if (updateDto.getFirstName() != null && !updateDto.getFirstName().equals(oldFirstName)) {
+                user.setFirstName(updateDto.getFirstName());
+                changed = true;
+                System.out.println("🔄 FirstName changé: " + oldFirstName + " → " + updateDto.getFirstName());
+            }
+
+            if (updateDto.getLastName() != null && !updateDto.getLastName().equals(oldLastName)) {
+                user.setLastName(updateDto.getLastName());
+                changed = true;
+                System.out.println("🔄 LastName changé: " + oldLastName + " → " + updateDto.getLastName());
+            }
+
+            if (updateDto.getEmail() != null && !updateDto.getEmail().equals(oldEmail)) {
+                user.setEmail(updateDto.getEmail());
+                changed = true;
+                System.out.println("🔄 Email changé: " + oldEmail + " → " + updateDto.getEmail());
+            }
+
+            if (!changed) {
+                System.out.println("ℹ️ Aucun changement détecté");
+                return ResponseEntity.ok(user);
+            }
+
+            // Sauvegarder dans MongoDB
+            System.out.println("💾 Sauvegarde MongoDB...");
             User updatedUser = userRepository.save(user);
+            System.out.println("✅ MongoDB mis à jour");
 
-            // Mettre à jour dans Keycloak APRÈS avoir sauvegardé en base
-            if (keycloakUserId != null) {
-                boolean keycloakUpdated = keycloakAdminService.updateUser(
-                        "projet-integration",
-                        keycloakUserId, // Utiliser l'ID Keycloak
-                        updatedUser.getEmail(),
-                        username,
-                        updatedUser.getFirstName(),
-                        updatedUser.getLastName(),
-                        null
-                );
+            // 🔥 UTILISER L'ID POUR KEYCLOAK AUSSI
+            String keycloakUserId = id; // Même ID
 
-                if (!keycloakUpdated) {
-                    System.err.println("⚠️ Keycloak update failed for user: " + username);
-                    // Ne pas retourner une erreur ici, car la base de données est déjà mise à jour
-                }
+            System.out.println("🔄 Synchronisation Keycloak avec ID: " + keycloakUserId);
+            boolean keycloakUpdated = keycloakAdminService.updateUser(
+                    "projet-integration",
+                    keycloakUserId,
+                    updatedUser.getEmail(),
+                    updatedUser.getIdentifiant(), // Username pour Keycloak
+                    updatedUser.getFirstName(),
+                    updatedUser.getLastName(),
+                    null
+            );
+
+            if (keycloakUpdated) {
+                System.out.println("✅✅✅ Keycloak synchronisé!");
+            } else {
+                System.out.println("⚠️ Keycloak non synchronisé (mais MongoDB OK)");
             }
 
             return ResponseEntity.ok(updatedUser);
 
         } catch (Exception e) {
-            System.err.println("💥 Error updating profile: " + e.getMessage());
+            System.err.println("💥 Erreur updateProfile: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
-    // -------------------------------
-// UPDATE PASSWORD
 // -------------------------------
     @PutMapping("/profile/{username}/password")
     public ResponseEntity<?> updatePassword(@PathVariable String username, @RequestBody PasswordUpdateDto passwordDto) {
