@@ -14,9 +14,7 @@ import org.springframework.http.HttpStatus; // 🔥 AJOUT
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class KeycloakAdminService {
@@ -63,29 +61,38 @@ public class KeycloakAdminService {
         // Vérifier si username existe déjà dans Keycloak
         List<UserRepresentation> existingUsers = usersResource.search(dto.getUsername());
         if (!existingUsers.isEmpty()) {
-            System.out.println("❌ Username existe déjà dans Keycloak: " + dto.getUsername());
+            System.out.println("❌ Username exists in Keycloak: " + dto.getUsername());
             return ResponseEntity.status(409).body(null);
         }
 
         // Vérifier si email existe déjà dans Keycloak
         List<UserRepresentation> existingEmail = usersResource.searchByEmail(dto.getEmail(), true);
         if (!existingEmail.isEmpty()) {
-            System.out.println("❌ Email existe déjà dans Keycloak: " + dto.getEmail());
+            System.out.println("❌ Email exists in Keycloak: " + dto.getEmail());
             return ResponseEntity.status(409).body(null);
         }
 
         // Vérifier si identifiant existe déjà dans MongoDB
         Optional<User> existingUserByIdentifiant = userRepository.findByIdentifiant(dto.getUsername());
         if (existingUserByIdentifiant.isPresent()) {
-            System.out.println("❌ Identifiant existe déjà dans MongoDB: " + dto.getUsername());
+            System.out.println("❌ Username exists in MongoDB: " + dto.getUsername());
             return ResponseEntity.status(409).body(null);
         }
 
         // Vérifier si email existe déjà dans MongoDB
         Optional<User> existingUserByEmail = userRepository.findByEmail(dto.getEmail());
         if (existingUserByEmail.isPresent()) {
-            System.out.println("❌ Email existe déjà dans MongoDB: " + dto.getEmail());
+            System.out.println("❌ Email exists in MongoDB: " + dto.getEmail());
             return ResponseEntity.status(409).body(null);
+        }
+
+        // NOUVEAU : Vérifier si le téléphone existe déjà dans MongoDB
+        if (dto.getPhone() != null && !dto.getPhone().isEmpty()) {
+            Optional<User> existingUserByPhone = userRepository.findByPhone(dto.getPhone());
+            if (existingUserByPhone.isPresent()) {
+                System.out.println("❌ Phone number exists in MongoDB: " + dto.getPhone());
+                return ResponseEntity.status(409).body(null);
+            }
         }
 
         // Construire l'utilisateur Keycloak
@@ -97,22 +104,29 @@ public class KeycloakAdminService {
         kcUser.setEnabled(true);
         kcUser.setEmailVerified(true);
 
+        // Ajouter l'attribut phone dans Keycloak (comme attribut personnalisé)
+        Map<String, List<String>> attributes = new HashMap<>();
+        if (dto.getPhone() != null && !dto.getPhone().isEmpty()) {
+            attributes.put("phone", Collections.singletonList(dto.getPhone()));
+        }
+        kcUser.setAttributes(attributes);
+
         // Création dans Keycloak
         try (Response response = usersResource.create(kcUser)) {
-            System.out.println("🔑 Réponse Keycloak: " + response.getStatus());
+            System.out.println("🔑 Keycloak response: " + response.getStatus());
 
             if (response.getStatus() == 409) {
                 return ResponseEntity.status(409).body(null);
             }
 
             if (response.getStatus() != 201) {
-                System.err.println("❌ Erreur création Keycloak: " + response.getStatus());
+                System.err.println("❌ Keycloak creation error: " + response.getStatus());
                 return ResponseEntity.status(response.getStatus()).body(null);
             }
 
             // Récupérer l'ID Keycloak
             String userId = response.getLocation().getPath().replaceAll(".*/([^/]+)$", "$1");
-            System.out.println("✅ ID Keycloak créé: " + userId);
+            System.out.println("✅ Keycloak ID created: " + userId);
 
             // Attendre un peu que l'utilisateur soit disponible
             try {
@@ -129,7 +143,7 @@ public class KeycloakAdminService {
 
             UserResource userResource = usersResource.get(userId);
             userResource.resetPassword(password);
-            System.out.println("✅ Mot de passe défini");
+            System.out.println("✅ Password set");
 
             // Ajouter le rôle
             String roleName = dto.getRole().name();
@@ -139,9 +153,9 @@ public class KeycloakAdminService {
                         .add(Collections.singletonList(
                                 keycloak.realm(REALM).roles().get(roleName).toRepresentation()
                         ));
-                System.out.println("✅ Rôle ajouté: " + roleName);
+                System.out.println("✅ Role added: " + roleName);
             } catch (Exception e) {
-                System.err.println("⚠️ Erreur ajout rôle, continuation...: " + e.getMessage());
+                System.err.println("⚠️ Error adding role, continuing...: " + e.getMessage());
             }
 
             // CRÉER L'UTILISATEUR DANS MONGODB
@@ -151,17 +165,18 @@ public class KeycloakAdminService {
             user.setEmail(dto.getEmail());
             user.setFirstName(dto.getFirstName());
             user.setLastName(dto.getLastName());
+            user.setPhone(dto.getPhone());  // NOUVEAU : Sauvegarder le téléphone
             user.setRole(User.Role.valueOf(dto.getRole().name()));
             // Pas besoin de setPassword car c'est géré par Keycloak
 
             // SAUVEGARDER DANS MONGODB
             User savedUser = userRepository.save(user);
-            System.out.println("✅ Utilisateur créé dans MongoDB: " + savedUser.getId());
+            System.out.println("✅ User created in MongoDB: " + savedUser.getId());
 
             return ResponseEntity.ok(savedUser);
 
         } catch (Exception e) {
-            System.err.println("💥 Erreur création utilisateur: " + e.getMessage());
+            System.err.println("💥 User creation error: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
@@ -247,7 +262,6 @@ public class KeycloakAdminService {
             user.setFirstName(firstName);  // 🔥 AJOUT
             user.setLastName(lastName);    // 🔥 AJOUT
             user.setUsername(username);    // Garder le même username
-
             userResource.update(user);
             System.out.println("✅ Keycloak complètement mis à jour");
 
@@ -270,6 +284,7 @@ public class KeycloakAdminService {
             return false;
         }
     }
+
     // -------------------------------
     // Vérifier le mot de passe actuel
     // -------------------------------
@@ -282,6 +297,7 @@ public class KeycloakAdminService {
             return false;
         }
     }
+
 
     // -------------------------------
     // Recherche utilisateur par email

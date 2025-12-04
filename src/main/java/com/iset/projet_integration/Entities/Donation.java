@@ -1,12 +1,12 @@
 package com.iset.projet_integration.Entities;
 
-
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Document(collection = "donations")
 public class Donation {
@@ -23,12 +23,22 @@ public class Donation {
     private User donor;
 
     private LocalDateTime dateDonation = LocalDateTime.now();
-
     private Categorie categorie;
-
     private String region;
+    private String details;
+    private List<String> images;
+    private StatutDonation status = StatutDonation.EN_ATTENTE;
 
-    public Donation(String id, Post post, User donor, LocalDateTime dateDonation, Categorie categorie, String region, String details, List<String> images, StatutDonation status) {
+    // ✅ NOUVEAU : Champs flexibles selon catégorie
+    private Map<String, Object> detailsSpecifiques;
+
+    public Donation() {}
+
+    // Constructeurs
+    public Donation(String id, Post post, User donor, LocalDateTime dateDonation,
+                    Categorie categorie, String region, String details,
+                    List<String> images, StatutDonation status,
+                    Map<String, Object> detailsSpecifiques) {
         this.id = id;
         this.post = post;
         this.donor = donor;
@@ -38,21 +48,7 @@ public class Donation {
         this.details = details;
         this.images = images;
         this.status = status;
-    }
-
-    // Champs flexibles selon catégorie
-    private String details;
-
-    // Images optionnelles
-    private List<String> images;
-    private StatutDonation status = StatutDonation.EN_ATTENTE;
-
-    public StatutDonation getStatus() {
-        return status;
-    }
-
-    public void setStatus(StatutDonation status) {
-        this.status = status;
+        this.detailsSpecifiques = detailsSpecifiques;
     }
 
     public enum Categorie {
@@ -63,26 +59,20 @@ public class Donation {
         EDUCATION,
         SANTE
     }
+
     public enum StatutDonation {
         EN_ATTENTE,
         ACCEPTEE,
         REFUSEE
     }
-    public Donation() {}
 
-    // Constructor complet
+    // Getters et Setters
+    public String getId() {
+        return id;
+    }
 
-
-    public Donation(String details, String id, Post post, User donor, LocalDateTime dateDonation, Categorie categorie, String region, List<String> images, StatutDonation status) {
-        this.details = details;
+    public void setId(String id) {
         this.id = id;
-        this.post = post;
-        this.donor = donor;
-        this.dateDonation = dateDonation;
-        this.categorie = categorie;
-        this.region = region;
-        this.images = images;
-        this.status = status;
     }
 
     public Post getPost() {
@@ -91,16 +81,6 @@ public class Donation {
 
     public void setPost(Post post) {
         this.post = post;
-    }
-
-
-
-    public String getId() {
-        return id;
-    }
-
-    public void setId(String id) {
-        this.id = id;
     }
 
     public User getDonor() {
@@ -149,5 +129,22 @@ public class Donation {
 
     public void setImages(List<String> images) {
         this.images = images;
+    }
+
+    public StatutDonation getStatus() {
+        return status;
+    }
+
+    public void setStatus(StatutDonation status) {
+        this.status = status;
+    }
+
+    // ✅ NOUVEAU : Getter et Setter pour detailsSpecifiques
+    public Map<String, Object> getDetailsSpecifiques() {
+        return detailsSpecifiques;
+    }
+
+    public void setDetailsSpecifiques(Map<String, Object> detailsSpecifiques) {
+        this.detailsSpecifiques = detailsSpecifiques;
     }
 }

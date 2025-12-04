@@ -7,7 +7,28 @@ public class UserDto {
     private String lastName;
     private String email;
     private String password;
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public UserDto(String username, String firstName, String lastName, String email, String password, Role role, String phone, String identifiant) {
+        this.username = username;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.email = email;
+        this.password = password;
+        this.role = role;
+        this.phone = phone;
+        this.identifiant = identifiant;
+    }
+
     private Role role;
+    private String phone;
     private String identifiant;
 
     public enum Role {

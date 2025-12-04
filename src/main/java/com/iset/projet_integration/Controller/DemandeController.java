@@ -231,7 +231,7 @@ public class DemandeController {
     ) {
         try {
             String username = authentication.getName();
-            System.out.println("🔄 Modification demande " + id + " par: " + username);
+            System.out.println("Modification demande " + id + " par: " + username);
 
             Demande updated = demandeService.updateDemandeNeedy(id, username, demande);
             return ResponseEntity.ok(updated);

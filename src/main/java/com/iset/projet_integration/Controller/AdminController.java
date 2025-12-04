@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/admin") // ⚠️ Cela donne /admin/summary-report
+@RequestMapping("/api/admin") // ⚠️ Cela donne /admin/summary-report
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 

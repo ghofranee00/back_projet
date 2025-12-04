@@ -133,7 +133,8 @@ public class UserController {
 
         return ResponseEntity.ok(updated);
     }
-    // 🔥 CORRIGÉ : Mettre à jour la photo de profil
+
+        // 🔥 CORRIGÉ : Mettre à jour la photo de profil
     // -------------------------------
     // UserController.java - MODIFIEZ la méthode updateProfilePhoto
     // UserController.java - Version corrigée

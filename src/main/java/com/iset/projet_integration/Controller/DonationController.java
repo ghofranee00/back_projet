@@ -1,328 +1,241 @@
 package com.iset.projet_integration.Controller;
 
 import com.iset.projet_integration.Entities.*;
+import com.iset.projet_integration.Repository.DonationRepository;
 import com.iset.projet_integration.Repository.PostRepository;
-import com.iset.projet_integration.Repository.UserRepository;
 import com.iset.projet_integration.Service.DonationService;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/donations")
-@CrossOrigin(origins = "*")
+@CrossOrigin(origins = "http://localhost:4200")
 public class DonationController {
 
     @Autowired
     private DonationService donationService;
 
     @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
     private PostRepository postRepository;
 
+    @Autowired
+    private DonationRepository donationRepository;
+
+    // 🔹 CORRECTION : Créer une donation à partir de DonationRequest
     @PostMapping
-    @PreAuthorize("hasAnyRole('DONNATEUR', 'ASSOCIATION')")
     public ResponseEntity<?> createDonation(
             @RequestBody DonationRequest request,
-            Authentication authentication) {
-
+            @AuthenticationPrincipal Jwt jwt) {
         try {
-            System.out.println("=== 🔴 DEBUG START ===");
-
-            // 1. Afficher TOUTE la requête
-            System.out.println("📦 FULL REQUEST BODY:");
-            System.out.println("  postId: '" + request.getPostId() + "'");
-            System.out.println("  categorie: '" + request.getCategorie() + "'");
-            System.out.println("  region: '" + request.getRegion() + "'");
-            System.out.println("  details: '" + request.getDetails() + "'");
-            System.out.println("  images: " + request.getImages());
-
-            // 2. Analyser l'ID caractère par caractère
-            if (request.getPostId() != null) {
-                System.out.println("🔍 POST ID ANALYSIS:");
-                System.out.println("  Length: " + request.getPostId().length());
-                System.out.println("  Is empty: " + request.getPostId().isEmpty());
-                System.out.println("  Trimmed: '" + request.getPostId().trim() + "'");
-
-                // Vérifier si c'est un ObjectId valide
-                boolean isValidObjectId = request.getPostId().matches("[0-9a-fA-F]{24}");
-                System.out.println("  Is valid ObjectId (24 hex chars): " + isValidObjectId);
-
-                // Afficher chaque caractère
-                System.out.println("  Characters:");
-                for (int i = 0; i < request.getPostId().length(); i++) {
-                    char c = request.getPostId().charAt(i);
-                    System.out.println("    [" + i + "] = '" + c + "' (code: " + (int) c + ")");
-                }
-            }
-
-            // 3. Vérifier TOUS les posts dans la base
-            System.out.println("🗄️ ALL POSTS IN DATABASE:");
-            List<Post> allPosts = postRepository.findAll();
-            if (allPosts.isEmpty()) {
-                System.out.println("  ❌ NO POSTS IN DATABASE!");
-            } else {
-                System.out.println("  Total posts: " + allPosts.size());
-                for (int i = 0; i < Math.min(allPosts.size(), 10); i++) {
-                    Post p = allPosts.get(i);
-                    System.out.println("  [" + i + "] ID: '" + p.getId() + "'");
-                    System.out.println("      Type: " + p.getTypeDemande());
-                    System.out.println("      Content preview: " +
-                            (p.getContenu() != null ?
-                                    p.getContenu().substring(0, Math.min(50, p.getContenu().length())) : "null"));
-                }
-            }
-
-            // 4. Essayer de trouver le post
-            if (request.getPostId() != null) {
-                System.out.println("🔎 SEARCHING FOR POST:");
-
-                // Méthode 1: existsById
-                boolean exists = postRepository.existsById(request.getPostId());
-                System.out.println("  Method 1 - existsById('" + request.getPostId() + "'): " + exists);
-
-                // Méthode 2: findById
-                Optional<Post> postOpt = postRepository.findById(request.getPostId());
-                System.out.println("  Method 2 - findById('" + request.getPostId() + "'): " +
-                        (postOpt.isPresent() ? "FOUND" : "NOT FOUND"));
-
-                // Méthode 3: Chercher manuellement
-                System.out.println("  Method 3 - Manual search:");
-                for (Post p : allPosts) {
-                    if (p.getId().equals(request.getPostId())) {
-                        System.out.println("    ✅ Exact match found!");
-                        System.out.println("      ID: '" + p.getId() + "'");
-                        System.out.println("      Content: " + p.getContenu());
-                        break;
-                    } else if (p.getId().equalsIgnoreCase(request.getPostId())) {
-                        System.out.println("    ⚠️ Case-insensitive match!");
-                    } else if (p.getId().contains(request.getPostId()) ||
-                            request.getPostId().contains(p.getId())) {
-                        System.out.println("    ⚠️ Partial match with ID: '" + p.getId() + "'");
-                    }
-                }
-
-                if (!exists) {
-                    System.out.println("❌ POST NOT FOUND!");
-                    System.out.println("   Request ID: '" + request.getPostId() + "'");
-                    System.out.println("   Available IDs:");
-                    for (Post p : allPosts) {
-                        System.out.println("   - '" + p.getId() + "'");
-                    }
-                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                            .body("Post not found. ID: '" + request.getPostId() + "'");
-                }
-            } else {
-                System.out.println("❌ POST ID IS NULL IN REQUEST!");
-            }
-
-            System.out.println("=== 🟢 DEBUG END ===");
-
-            // ... reste du code normal
-
-            return ResponseEntity.ok("Test success");
-
-        } catch (Exception e) {
-            System.out.println("💥 EXCEPTION: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    // 🔹 Lister toutes les donations - Accessible à tous les utilisateurs authentifiés
-    @GetMapping
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getAllDonations(Authentication authentication) {
-        try {
-            User currentUser = getCurrentUser(authentication);
-
-            List<Donation> donations;
-            if (currentUser.getRole() == User.Role.ADMIN) {
-                donations = donationService.listerDonations();
-            } else {
-                donations = donationService.getDonationsByUser(currentUser);
-            }
-
-            return ResponseEntity.ok(donations);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    // 🔹 Récupérer une donation par ID
-    @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getDonationById(
-            @PathVariable String id,
-            Authentication authentication) {
-
-        try {
-            User currentUser = getCurrentUser(authentication);
-            Donation donation = donationService.getDonationById(id);
-
-            // Vérifier les permissions
-            if (currentUser.getRole() != User.Role.ADMIN &&
-                    !donation.getDonor().getId().equals(currentUser.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("Vous n'avez pas accès à cette donation");
-            }
-
+            String authenticatedUserId = jwt.getSubject();
+            Donation donation = donationService.creerDonation(request, authenticatedUserId);
             return ResponseEntity.ok(donation);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // 🔹 Filtrer donations - Accessible à tous
-    @GetMapping("/filtrer")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> filtrerDonations(
-            @RequestParam(required = false) String categorie,
-            @RequestParam(required = false) String region,
-            @RequestParam(required = false) String statut,
-            Authentication authentication) {
-
+    // 🔹 Mettre à jour le statut (accepter / refuser) par l'admin
+    @PutMapping("/{id}/status")
+    public ResponseEntity<Donation> updateStatus(
+            @PathVariable String id,
+            @RequestParam String action // "accepter" ou "refuser"
+    ) {
         try {
-            User currentUser = getCurrentUser(authentication);
-
-            // Convertir les paramètres en Enum
-            Donation.Categorie categorieEnum = null;
-            if (categorie != null && !categorie.isEmpty()) {
-                categorieEnum = Donation.Categorie.valueOf(categorie.toUpperCase());
-            }
-
-            Donation.StatutDonation statutEnum = null;
-            if (statut != null && !statut.isEmpty()) {
-                statutEnum = Donation.StatutDonation.valueOf(statut.toUpperCase());
-            }
-
-            List<Donation> donations = donationService.filtrerDonations(categorieEnum, region, statutEnum);
-
-            // Filtrage supplémentaire pour les non-ADMIN
-            if (currentUser.getRole() != User.Role.ADMIN) {
-                donations = donations.stream()
-                        .filter(d -> d.getDonor().getId().equals(currentUser.getId()))
-                        .collect(Collectors.toList());
-            }
-
-            return ResponseEntity.ok(donations);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Paramètre invalide: " + e.getMessage());
+            List<Notification> notifications = donationService.traiterDonation(id, action);
+            System.out.println(" Notifications créées: " + notifications.size());
+            Donation donation = donationService.getDonationById(id);
+            return ResponseEntity.ok(donation);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // 🔹 Lister toutes les donations
+    @GetMapping
+    public ResponseEntity<List<Donation>> getAllDonations() {
+        return ResponseEntity.ok(donationService.listerDonations());
+    }
+
+    // 🔹 Filtrer donations
+    @GetMapping("/filtrer")
+    public ResponseEntity<List<Donation>> filtrerDonations(
+            @RequestParam(required = false) Donation.Categorie categorie,
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false) Donation.StatutDonation statut
+    ) {
+        try {
+            List<Donation> donations = donationService.filtrerDonations(categorie, region, statut);
+            return ResponseEntity.ok(donations);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
         }
     }
 
     // 🔹 Récupérer donations par utilisateur
     @GetMapping("/user/{userId}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> getDonationsByUser(
-            @PathVariable String userId,
-            Authentication authentication) {
-
+    public ResponseEntity<List<Donation>> getDonationsByUser(@PathVariable String userId) {
         try {
-            User currentUser = getCurrentUser(authentication);
-
-            // Un utilisateur ne peut voir que ses propres donations sauf s'il est ADMIN
-            if (!currentUser.getId().equals(userId) && currentUser.getRole() != User.Role.ADMIN) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("Vous n'avez pas accès aux donations de cet utilisateur");
-            }
-
-            User user = new User();
-            user.setId(userId);
-            List<Donation> donations = donationService.getDonationsByUser(user);
-
+            List<Donation> donations = donationService.getDonationsByUserId(userId);
             return ResponseEntity.ok(donations);
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.internalServerError().build();
         }
     }
 
-    // 🔹 Supprimer une donation - DONOR et ADMIN seulement
+    // 🔹 Supprimer une donation
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('DONNATEUR', 'ADMIN')")
-    public ResponseEntity<?> deleteDonation(
-            @PathVariable String id,
-            Authentication authentication) {
-
+    public ResponseEntity<Void> deleteDonation(@PathVariable String id) {
         try {
-            User currentUser = getCurrentUser(authentication);
-            Donation donation = donationService.getDonationById(id);
-
-            // Vérifier que le DONOR ne peut supprimer que ses propres donations
-            if (currentUser.getRole() == User.Role.DONNATEUR &&
-                    !donation.getDonor().getId().equals(currentUser.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("Vous ne pouvez supprimer que vos propres donations");
-            }
-
             donationService.deleteDonation(id);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Donation supprimée avec succès");
-            response.put("timestamp", LocalDateTime.now());
-
-            return ResponseEntity.ok(response);
+            return ResponseEntity.ok().build();
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().build();
         }
     }
 
-    // 🔹 Mettre à jour une donation - DONOR et ADMIN seulement
-    @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('DONNATEUR', 'ADMIN')")
-    public ResponseEntity<?> updateDonation(
-            @PathVariable String id,
-            @RequestBody Donation donationDetails,
-            Authentication authentication) {
-
+    // 🔹 Afficher l'historique des donations pour un utilisateur
+    @GetMapping("/user/{userId}/history")
+    public ResponseEntity<List<Donation>> getDonationHistory(@PathVariable String userId) {
         try {
-            User currentUser = getCurrentUser(authentication);
-            Donation existingDonation = donationService.getDonationById(id);
+            List<Donation> donations = donationService.getDonationsByUserId(userId);
+            return ResponseEntity.ok(donations);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
 
-            // Vérifier que le DONOR ne peut modifier que ses propres donations
-            if (currentUser.getRole() == User.Role.DONNATEUR &&
-                    !existingDonation.getDonor().getId().equals(currentUser.getId())) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                        .body("Vous ne pouvez modifier que vos propres donations");
+    // 🔹 Mettre à jour une donation
+    @PutMapping("/{id}")
+    public ResponseEntity<Donation> updateDonation(
+            @PathVariable String id,
+            @RequestBody Donation donationDetails
+    ) {
+        try {
+            Donation updated = donationService.updateDonation(id, donationDetails);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    // 🔹 Récupérer les donations pour un post spécifique
+    @GetMapping("/post/{postId}")
+    public ResponseEntity<List<Donation>> getDonationsByPostId(@PathVariable String postId) {
+        try {
+            List<Donation> donations = donationRepository.findByPostId(postId);
+            return ResponseEntity.ok(donations);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+
+    @GetMapping("/needy/{userId}")
+    public ResponseEntity<List<Map<String, Object>>> getDonationsForNeedy(@PathVariable String userId) {
+        try {
+            System.out.println("📱 Frontend requesting donations for userId: " + userId);
+
+            // Récupérer tous les posts de ce needy
+            List<Post> needyPosts = postRepository.findByUserId(userId);
+            System.out.println("📄 Found " + needyPosts.size() + " posts for user");
+
+            if (needyPosts.isEmpty()) {
+                System.out.println("ℹ No posts found for user, returning empty list");
+                return ResponseEntity.ok(Collections.emptyList());
             }
 
-            // Empêcher la modification du statut via cette méthode
-            donationDetails.setStatus(existingDonation.getStatus());
+            // CORRECTION: Convertir en ObjectId
+            List<ObjectId> postObjectIds = needyPosts.stream()
+                    .map(post -> new ObjectId(post.getId()))
+                    .collect(Collectors.toList());
 
-            // Garder les références originales
-            donationDetails.setDonor(existingDonation.getDonor());
-            donationDetails.setPost(existingDonation.getPost());
+            System.out.println("📋 Post ObjectIds: " + postObjectIds);
 
-            Donation updated = donationService.updateDonation(id, donationDetails);
+            // DEBUG: Vérifier manuellement
+            System.out.println("\n🔍 [DEBUG] Manual check of donations:");
+            List<Donation> allDonations = donationRepository.findAll();
+            List<Donation> matchingDonations = new ArrayList<>();
 
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "Donation mise à jour avec succès");
-            response.put("donation", updated);
-            response.put("timestamp", LocalDateTime.now());
+            for (Donation donation : allDonations) {
+                if (donation.getPost() != null) {
+                    String donationPostId = donation.getPost().getId();
+                    boolean isInList = needyPosts.stream()
+                            .anyMatch(post -> post.getId().equals(donationPostId));
 
-            return ResponseEntity.ok(response);
+                    System.out.println("   Donation " + donation.getId() +
+                            " -> Post ID: " + donationPostId +
+                            ", In list? " + isInList);
+
+                    if (isInList) {
+                        matchingDonations.add(donation);
+                    }
+                }
+            }
+
+            System.out.println(" Manually found " + matchingDonations.size() + " donations");
+
+            // Si la méthode findByPostIdIn ne marche pas, utilise les donations trouvées manuellement
+            List<Donation> donations = matchingDonations;
+
+            // Convertir en Map
+            List<Map<String, Object>> responseList = new ArrayList<>();
+
+            for (Donation donation : donations) {
+                Map<String, Object> donationMap = new HashMap<>();
+                donationMap.put("id", donation.getId());
+
+                // Infos du post
+                if (donation.getPost() != null) {
+                    donationMap.put("postId", donation.getPost().getId());
+                    donationMap.put("postContent", donation.getPost().getContenu());
+                }
+
+                // Infos du donateur
+                if (donation.getDonor() != null) {
+                    donationMap.put("donorId", donation.getDonor().getId());
+                    donationMap.put("donorName",
+                            donation.getDonor().getFirstName() + " " + donation.getDonor().getLastName());
+                    donationMap.put("donorEmail", donation.getDonor().getEmail());
+                    donationMap.put("donorPhone", donation.getDonor().getPhone());
+                }
+
+                // Autres champs
+                donationMap.put("dateDonation", donation.getDateDonation());
+                donationMap.put("categorie", donation.getCategorie() != null ? donation.getCategorie().name() : null);
+                donationMap.put("region", donation.getRegion());
+                donationMap.put("details", donation.getDetails());
+                donationMap.put("status", donation.getStatus() != null ? donation.getStatus().name() : null);
+
+                responseList.add(donationMap);
+                System.out.println("🎯 Added donation: " + donation.getId() +
+                        " for post: " + donationMap.get("postId"));
+            }
+
+            System.out.println("✅ Returning " + responseList.size() + " donations");
+            return ResponseEntity.ok(responseList);
+
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            System.out.println("❌ Error in getDonationsForNeedy: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
-
-    // 🔹 Méthode utilitaire pour récupérer l'utilisateur courant
-    private User getCurrentUser(Authentication authentication) {
-        String username = authentication.getName();
-        return userRepository.findByEmail(username)
-                .orElseThrow(() -> new RuntimeException("Utilisateur non trouvé"));
+    // 🔹 Récupérer une donation par ID
+    @GetMapping("/{id}")
+    public ResponseEntity<Donation> getDonationById(@PathVariable String id) {
+        try {
+            Donation donation = donationService.getDonationById(id);
+            return ResponseEntity.ok(donation);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

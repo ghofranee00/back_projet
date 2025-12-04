@@ -14,6 +14,33 @@ public class User {
     private String id; // MongoDB utilise String pour l'ID
     private String firstName;
     private String lastName;
+
+    private String phone;
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public User(String id, String firstName, String lastName, String phone, String identifiant, String email, String password, String photoUrl, Role role, Date dateCreation, List<Demande> demandes, List<Notification> notificationsEnvoyees, List<Notification> notificationsRecues) {
+        this.id = id;
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.phone = phone;
+        this.identifiant = identifiant;
+        this.email = email;
+        this.password = password;
+        this.photoUrl = photoUrl;
+        this.role = role;
+        this.dateCreation = dateCreation;
+        this.demandes = demandes;
+        this.notificationsEnvoyees = notificationsEnvoyees;
+        this.notificationsRecues = notificationsRecues;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
     private String identifiant;
     private String email;
     private String password;

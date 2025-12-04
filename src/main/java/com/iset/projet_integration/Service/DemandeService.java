@@ -296,7 +296,7 @@ public class DemandeService {
 
             // Notification pour le needy
             Notification notifNeedy = new Notification();
-            notifNeedy.setMessage("Votre demande a été acceptée ✅");
+            notifNeedy.setMessage("Your request has been accepted ");
             notifNeedy.setType(Notification.TypeNotification.valueOf(demande.getTypeDemande().name()));
             notifNeedy.setStatut(Notification.StatutNotification.ACCEPTEE);
             notifNeedy.setExpediteur(admin);
@@ -312,7 +312,7 @@ public class DemandeService {
 
             for (User user : recepteurs) {
                 Notification notifDon = new Notification();
-                notifDon.setMessage("Nouvelle demande publiée : " + demande.getContenu());
+                notifDon.setMessage("New request published : " + demande.getContenu());
                 notifDon.setType(Notification.TypeNotification.valueOf(demande.getTypeDemande().name()));
                 notifDon.setStatut(Notification.StatutNotification.ACCEPTEE);
                 notifDon.setExpediteur(needy);
@@ -330,7 +330,7 @@ public class DemandeService {
 
             // Notification pour le needy
             Notification notifRefus = new Notification();
-            notifRefus.setMessage("Votre demande '" + demande.getContenu() + "' a été refusée ❌");
+            notifRefus.setMessage("Your request '" + demande.getContenu() + "' was denied ");
             notifRefus.setType(Notification.TypeNotification.valueOf(demande.getTypeDemande().name()));
             notifRefus.setStatut(Notification.StatutNotification.REFUSEE);
             notifRefus.setExpediteur(admin);
